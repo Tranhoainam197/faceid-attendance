@@ -4,13 +4,12 @@ __pycache__/
 *.pyo
 venv/
 .venv/
-*.whl
+
 
 # Database & models
 data/
 *.db
 *.sqlite3
-models/*.pt
 models/*.onnx
 
 # Training artifacts

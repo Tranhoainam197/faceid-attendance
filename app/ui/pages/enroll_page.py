@@ -96,9 +96,9 @@ class EnrollPage(ctk.CTkFrame):
 
         inner = ctk.CTkFrame(panel, fg_color="transparent")
         inner.pack(padx=20, pady=20)
-
+        preview_w, preview_h = 480, 360
         video_box = ctk.CTkFrame(
-            inner, fg_color="#111317", corner_radius=12, width=CAMERA_WIDTH, height=CAMERA_HEIGHT,
+            inner, fg_color="#111317", corner_radius=12, width=preview_w, height=preview_h,
         )
         video_box.pack(pady=(0, 14))
         video_box.pack_propagate(False)
@@ -456,7 +456,7 @@ class EnrollPage(ctk.CTkFrame):
     # ============================================================
     def _render_frame(self, frame_bgr):
         img = Image.fromarray(cv2.cvtColor(frame_bgr, cv2.COLOR_BGR2RGB))
-        img = img.resize((CAMERA_WIDTH, CAMERA_HEIGHT), Image.Resampling.LANCZOS)
+        img = img.resize((480, 360), Image.Resampling.LANCZOS)
         self.photo_image = ImageTk.PhotoImage(img)
         self.video_label.configure(image=self.photo_image, text="")
 
