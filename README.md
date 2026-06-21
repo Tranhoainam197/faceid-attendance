@@ -1,305 +1,213 @@
-<div align="center">
+# 🪪 FaceID Attendance System
 
-<h1>⬡ FaceID Attendance System</h1>
-
-<p><strong>Hệ thống Chấm Công Tự Động Sử Dụng Nhận Diện Khuôn Mặt & Chống Giả Mạo</strong></p>
-
-[![Python](https://img.shields.io/badge/Python-3.10%2B-3776AB?style=flat-square&logo=python&logoColor=white)](https://python.org)
-[![PySide6](https://img.shields.io/badge/PySide6-6.6%2B-41CD52?style=flat-square&logo=qt&logoColor=white)](https://doc.qt.io/qtforpython)
-[![InsightFace](https://img.shields.io/badge/InsightFace-ArcFace-FF6B35?style=flat-square)](https://insightface.ai)
-[![YOLOv8](https://img.shields.io/badge/YOLOv8-Anti--Spoof-00C7B7?style=flat-square&logo=ultralytics)](https://ultralytics.com)
-[![SQLAlchemy](https://img.shields.io/badge/SQLAlchemy-2.0-D71F00?style=flat-square)](https://sqlalchemy.org)
-[![License](https://img.shields.io/badge/License-MIT-green?style=flat-square)](LICENSE)
-
-</div>
+Hệ thống điểm danh bằng nhận diện khuôn mặt, có chống giả mạo (liveness detection),
+giao diện desktop hiện đại, chạy tốt trên máy chỉ có CPU.
 
 ---
 
-## 📌 Giới thiệu
+## ✨ Tính năng
 
-**FaceID Attendance** là hệ thống chấm công doanh nghiệp thế hệ mới, thay thế hoàn toàn thẻ từ và vân tay bằng công nghệ nhận diện khuôn mặt AI. Hệ thống nhận dạng nhân viên theo thời gian thực qua camera, tự động ghi nhận điểm danh và có cơ chế chống giả mạo bằng ảnh/video.
-
-### ✨ Tính năng nổi bật
-
-| Tính năng | Mô tả |
-|-----------|-------|
-| 🎯 **Nhận diện chính xác** | ArcFace (buffalo_l) — độ chính xác 99.4% trên LFW benchmark |
-| 🛡️ **Chống giả mạo** | YOLOv8 phân loại real/fake theo thời gian thực |
-| ⚡ **Realtime** | Xử lý 30 FPS trên CPU thông thường |
-| 🖥️ **Giao diện hiện đại** | PySide6, Light mode, thiết kế Material Design |
-| 🗄️ **Database chuẩn** | SQLAlchemy ORM + SQLite, hỗ trợ WAL mode |
-| 📊 **Thống kê trực quan** | Dashboard tổng hợp điểm danh theo ngày/phiên |
-| 🔒 **Bảo mật** | Không lưu ảnh gốc, chỉ lưu vector embedding 512-chiều |
+- **Chấm công real-time** qua camera, kết hợp nhận diện khuôn mặt (InsightFace) và
+  chống giả mạo bằng ảnh/màn hình điện thoại (YOLOv8 anti-spoofing)
+- **Đăng ký nhân sự mới** với kiểm tra chất lượng mẫu trực tiếp (khoảng cách, độ sáng,
+  đa dạng góc mặt), tự loại bỏ outlier khi lưu
+- **Quản lý buổi học (session)** — mỗi buổi có thời điểm bắt đầu/kết thúc riêng
+- **Lịch sử điểm danh** — tra cứu theo ngày, tìm theo mã số, xuất CSV
+- **Danh sách nhân sự** — tìm kiếm, xóa, xuất CSV
+- **1 file database SQLite duy nhất** (`data/faceid.db`), embedding lưu dạng BLOB
+- **Camera chạy trên thread riêng** — giao diện không bị giật/đứng dù model AI xử lý chậm
+- Giao diện **light mode** chuyên nghiệp bằng CustomTkinter
 
 ---
 
-## 🏗️ Kiến trúc hệ thống
+## 💻 Yêu cầu hệ thống
 
-```
-┌─────────────────────────────────────────────────────────────────┐
-│                    PRESENTATION LAYER (GUI)                      │
-│   PySide6 │ MainWindow │ HomeView │ AttendanceView │ EnrollView  │
-└───────────────────────────┬─────────────────────────────────────┘
-                            │ gọi trực tiếp
-┌───────────────────────────▼─────────────────────────────────────┐
-│                      CORE LAYER (AI Pipeline)                    │
-│                                                                  │
-│  ┌─────────────────┐    ┌──────────────────┐    ┌────────────┐  │
-│  │ InsightFace     │    │  AntiSpoofing     │    │FaceMatcher │  │
-│  │ Singleton       │    │  (YOLOv8)         │    │(Cosine)    │  │
-│  │ ArcFace buffalo │    │  real/fake detect │    │0.45 thresh │  │
-│  └────────┬────────┘    └────────┬──────────┘    └─────┬──────┘  │
-│           │                      │                      │         │
-│           └──────────────────────┴──────────────────────┘         │
-│                          EnrollManager                            │
-│                   (thu thập 15 mẫu, outlier filter)              │
-└───────────────────────────┬─────────────────────────────────────┘
-                            │ đọc/ghi
-┌───────────────────────────▼─────────────────────────────────────┐
-│                     DATA LAYER (Repository)                      │
-│                                                                  │
-│   SQLAlchemy ORM     SQLite (WAL)     Pickle (embeddings.pkl)   │
-│   ├── Employee       ├── employees    └── 512-d L2-normalized   │
-│   ├── Session        ├── sessions         ArcFace embeddings     │
-│   └── Attendance     └── attendance                              │
-└─────────────────────────────────────────────────────────────────┘
-```
+| Thành phần | Yêu cầu |
+|---|---|
+| OS | Windows 10/11 (đã thiết kế và tối ưu cho Windows) |
+| Python | 3.10 – 3.11 |
+| CPU | Intel i5 hoặc tương đương trở lên |
+| RAM | 8GB+ khuyến nghị |
+| GPU | Không bắt buộc — chạy tốt trên CPU thuần (AMD/Intel iGPU không cần dùng) |
+| Camera | Webcam ≥ 720p |
 
 ---
 
-## 🔬 Pipeline AI chi tiết
+## 🚀 Cài đặt
 
-```
-Camera Frame (BGR)
-        │
-        ▼
-┌───────────────────────────────────────────────┐
-│         ANTI-SPOOFING (mỗi frame)             │
-│   YOLOv8 → phát hiện real/fake boxes         │
-│   conf_threshold = 0.80                       │
-└───────────────┬───────────────────────────────┘
-                │ has_real = True?
-                ▼
-┌───────────────────────────────────────────────┐
-│     FACE DETECTION (mỗi 5 frame)              │
-│   InsightFace buffalo_l → bbox + embedding    │
-│   det_size = (480, 480)                       │
-│   Scale ×(1/0.75) về kích thước gốc          │
-└───────────────┬───────────────────────────────┘
-                │
-                ▼
-┌───────────────────────────────────────────────┐
-│     OVERLAP VERIFICATION                      │
-│   YOLO real_box ∩ InsightFace bbox > 0       │
-│   (đảm bảo face detected = face real)        │
-└───────────────┬───────────────────────────────┘
-                │ verified
-                ▼
-┌───────────────────────────────────────────────┐
-│     COSINE SIMILARITY MATCHING                │
-│   query_emb · DB_matrix → argmax             │
-│   similarity ≥ 0.45 → nhận dạng thành công  │
-│   O(N) với N = số nhân viên                  │
-└───────────────┬───────────────────────────────┘
-                │ match
-                ▼
-┌───────────────────────────────────────────────┐
-│     COOLDOWN CHECK (60 giây)                  │
-│   Tránh ghi trùng trong cùng phiên           │
-└───────────────┬───────────────────────────────┘
-                │
-                ▼
-         mark_attendance()
-         → SQLite (WAL mode)
-```
-
----
-
-## 📁 Cấu trúc thư mục
-
-```
-faceid-attendance/
-│
-├── main.py                     # Điểm khởi động ứng dụng
-├── config.yaml                 # Cấu hình tập trung (camera, AI, DB, UI)
-├── requirements.txt
-├── .gitignore
-│
-├── src/
-│   ├── core/                   # AI Pipeline
-│   │   ├── insightface_singleton.py   # Thread-safe Singleton — ArcFace
-│   │   ├── anti_spoofing.py           # YOLOv8 real/fake detection
-│   │   ├── face_matcher.py            # Cosine similarity matching
-│   │   └── enroll_manager.py          # Thu thập & lưu embedding
-│   │
-│   ├── database/               # Data Layer
-│   │   ├── models.py                  # SQLAlchemy ORM (Employee, Session, Attendance)
-│   │   └── repository.py              # Data Access Layer — mọi truy vấn DB
-│   │
-│   ├── gui/                    # Presentation Layer
-│   │   ├── main_window.py             # Sidebar navigation + QStackedWidget
-│   │   ├── styles.py                  # Stylesheet tập trung (Material Design)
-│   │   └── views/
-│   │       ├── home_view.py           # Dashboard thống kê
-│   │       ├── attendance_view.py     # Điểm danh realtime
-│   │       ├── enroll_view.py         # Đăng ký khuôn mặt
-│   │       ├── employee_view.py       # Quản lý nhân viên
-│   │       └── history_view.py        # Lịch sử điểm danh
-│   │
-│   └── utils/
-│       ├── config.py                  # Config loader (YAML → dict)
-│       └── logger.py                  # Rotating file logger
-│
-├── models/                     # Model AI (không push lên git)
-│   ├── anti_spoof.pt           # YOLOv8 custom trained
-│   └── (buffalo_l tự download bởi insightface)
-│
-├── data/                       # Dữ liệu runtime (không push lên git)
-│   ├── attendance.db           # SQLite database
-│   └── embeddings.pkl          # Face embeddings
-│
-├── logs/                       # Log files (tự tạo khi chạy)
-│
-├── tests/                      # Unit tests
-│   └── ...
-│
-└── docs/                       # Tài liệu bổ sung
-    └── ...
-```
-
----
-
-## 🛠️ Công nghệ sử dụng
-
-| Thành phần | Công nghệ | Phiên bản | Mục đích |
-|-----------|-----------|-----------|---------|
-| **Giao diện** | PySide6 (Qt6) | ≥6.6 | UI hiện đại, cross-platform |
-| **Nhận diện khuôn mặt** | InsightFace / ArcFace | ≥0.7.3 | Trích xuất embedding 512-d |
-| **Chống giả mạo** | YOLOv8 (Ultralytics) | ≥8.0 | Phân loại real/fake |
-| **Inference** | ONNX Runtime | ≥1.17 | Chạy model AI trên CPU |
-| **Camera** | OpenCV | ≥4.9 | Đọc frame, vẽ annotation |
-| **Database** | SQLAlchemy + SQLite | ≥2.0 | ORM, WAL mode |
-| **Config** | PyYAML | ≥6.0 | Cấu hình tập trung |
-
----
-
-## ⚙️ Hướng dẫn cài đặt
-
-### Yêu cầu hệ thống
-
-- **OS**: Windows 10/11, Ubuntu 20.04+, macOS 12+
-- **Python**: 3.10 hoặc 3.11
-- **RAM**: Tối thiểu 4GB (khuyến nghị 8GB)
-- **Camera**: Webcam USB hoặc tích hợp (720p trở lên)
-
----
-
-### Bước 1 — Clone repository
+### 1. Tạo virtual environment
 
 ```bash
-git clone https://github.com/Tranhoainam197/faceid-attendance.git
-cd faceid-attendance
-```
-
-### Bước 2 — Tạo môi trường ảo
-
-```bash
-# Windows
 python -m venv venv
 venv\Scripts\activate
-
-# Linux / macOS
-python3 -m venv venv
-source venv/bin/activate
 ```
 
-### Bước 3 — Cài đặt dependencies
+### 2. Cài thư viện
 
 ```bash
 pip install -r requirements.txt
 ```
 
-> **Lưu ý InsightFace trên Windows:**
-> Nếu `pip install insightface` báo lỗi, dùng file wheel đã build sẵn:
-> ```bash
-> pip install insightface-0.7.3-cp310-cp310-win_amd64.whl
-> ```
+> Nếu `insightface` cài lỗi trên Windows, cài thêm
+> [Visual C++ Build Tools](https://visualstudio.microsoft.com/visual-cpp-build-tools/)
+> rồi chạy lại lệnh trên.
 
-### Bước 4 — Đặt model Anti-Spoofing
+### 3. Chuẩn bị model anti-spoofing
 
-Sao chép file model YOLOv8 đã train vào thư mục `models/`:
+Bạn cần file `models/best.pt`. Có 2 cách:
+
+**Cách A — Dùng model có sẵn:** copy file `best.pt` từ dự án cũ vào thư mục `models/`.
+
+**Cách B — Tự train model mới** (khuyến nghị nếu model cũ nhận diện chưa chính xác):
+
+```bash
+# Bước 1: Thu thập dữ liệu (mở camera, nhấn 'r'/'f' để đổi mode real/fake, 'q' để thoát)
+python data_collect.py
+
+# Bước 2: Chia train/val/test
+python split_data.py
+
+# Bước 3: Train model (chạy trên CPU, có thể mất 1-3 giờ tùy dataset và máy)
+python train_yolo.py
 ```
-models/
-└── anti_spoof.pt    ← file model của bạn
-```
 
-### Bước 5 — Chạy ứng dụng
+Xem chi tiết hướng dẫn train ở mục [Train model anti-spoofing](#-train-model-anti-spoofing) dưới đây.
+
+### 4. Chạy ứng dụng
 
 ```bash
 python main.py
 ```
 
-Lần đầu chạy, InsightFace sẽ tự động tải model `buffalo_l` (~500MB).
+Database `data/faceid.db` sẽ tự động được tạo ở lần chạy đầu tiên.
 
 ---
 
-## 🚀 Hướng dẫn sử dụng
-
-### 1. Đăng ký nhân viên mới
-1. Vào **"Đăng ký NV"** trên sidebar
-2. Nhập Mã NV, Họ tên, Phòng ban
-3. Nhấn **"Bắt đầu"** — giữ khuôn mặt trước camera
-4. Xoay mặt nhẹ để thu thập 15 mẫu đa dạng
-5. Nhấn **"Lưu nhân viên"** sau khi thanh tiến độ đầy
-
-### 2. Điểm danh
-1. Vào **"Điểm danh"** → chọn hoặc tạo phiên
-2. Nhấn **"Bắt đầu"**
-3. Nhân viên đứng trước camera — hệ thống tự nhận dạng và ghi danh
-4. Nhấn **"Dừng"** khi kết thúc ca
-
-### 3. Xem lịch sử
-1. Vào **"Lịch sử"** → chọn ngày cần xem
-2. Nhấn **"Tìm kiếm"** để lọc kết quả
-
----
-
-## 🧠 Giải thích kỹ thuật
-
-### Tại sao dùng ArcFace?
-ArcFace sử dụng **Additive Angular Margin Loss** để học phân biệt khuôn mặt trong không gian hypersphere. Khoảng cách giữa các embedding được tối ưu theo góc (cosine), cho phép phân biệt chính xác ngay cả với biến thể ánh sáng, góc nhìn và biểu cảm.
-
-### Tại sao cần anti-spoofing?
-Không có anti-spoofing, kẻ gian có thể dùng **ảnh chụp** hoặc **video** để đánh lừa hệ thống. YOLOv8 phát hiện khuôn mặt thật (3D, có độ sâu) khác với ảnh phẳng (2D) qua các đặc trưng texture, phản quang và chuyển động.
-
-### Tại sao dùng Singleton cho InsightFace?
-Model buffalo_l chiếm ~500MB RAM. Tạo nhiều instance gây **tràn bộ nhớ** và tốn 3–8 giây mỗi lần khởi tạo. Singleton đảm bảo chỉ load một lần, chia sẻ an toàn giữa các thread nhờ `threading.Lock`.
-
-### Tại sao lưu embedding thay vì ảnh?
-- **Bảo mật**: Không thể tái tạo khuôn mặt từ vector 512 số thực
-- **Tốc độ**: So sánh vector O(N) nhanh hơn so sánh ảnh O(N×W×H)
-- **Nhỏ gọn**: Mỗi nhân viên chỉ tốn ~2KB thay vì hàng MB ảnh
-
----
-
-## 👥 Nhóm phát triển
-
-| Thành viên | Vai trò |
-|-----------|---------|
-| **[Tên TV 1]** | AI Core — InsightFace, ArcFace embedding pipeline |
-| **[Tên TV 2]** | Anti-Spoofing — YOLOv8 training & integration |
-| **[Tên TV 3]** | Database — SQLAlchemy ORM, Repository pattern |
-| **[Tên TV 4]** | GUI — PySide6, Material Design, UX flow |
-| **[Tên TV 5]** | Architecture — Clean Architecture, Config, Logger, Docs |
+## 📁 Cấu trúc dự án
+faceid-attendance/
+├── main.py                       # Entry point
+├── config.py                     # Cấu hình tập trung (threshold, đường dẫn, kích thước...)
+├── requirements.txt
+├── README.md
+│
+├── data_collect.py                # Thu thập dữ liệu train anti-spoofing
+├── split_data.py                  # Chia train/val/test
+├── train_yolo.py                  # Train model YOLO anti-spoofing
+│
+├── app/
+│   ├── core/                      # Business logic (không phụ thuộc UI)
+│   │   ├── camera_stream.py       # Camera đọc trên thread riêng
+│   │   ├── face_engine.py         # Singleton InsightFace
+│   │   ├── anti_spoof.py          # Wrapper YOLO chống giả mạo
+│   │   ├── face_matcher.py        # So khớp embedding (cosine similarity)
+│   │   ├── enroll_service.py      # Logic thu mẫu khi đăng ký
+│   │   └── attendance_service.py  # Logic xác thực + ghi nhận điểm danh
+│   │
+│   ├── db/                        # Tầng dữ liệu (SQLite)
+│   │   ├── database.py            # Kết nối + schema
+│   │   ├── student_repo.py
+│   │   ├── session_repo.py
+│   │   └── attendance_repo.py
+│   │
+│   ├── ui/
+│   │   ├── theme.py                # Màu sắc, font tập trung
+│   │   ├── app_window.py           # Cửa sổ chính + sidebar
+│   │   ├── widgets/                # Component dùng chung (toast, stat card, sidebar)
+│   │   └── pages/                  # 5 trang: dashboard, attendance, enroll, students, history
+│   │
+│   └── utils/
+│       └── image_utils.py
+│
+├── models/
+│   └── best.pt                     # Model YOLO anti-spoofing (tự train hoặc copy vào)
+│
+└── data/
+└── faceid.db                   # Tự tạo khi chạy lần đầu (KHÔNG commit lên git)
 
 ---
 
-## 📄 Giấy phép
+## 🔧 Công nghệ sử dụng
 
-Dự án được phân phối theo giấy phép [MIT](LICENSE).
+| Công nghệ | Vai trò |
+|---|---|
+| **InsightFace** (buffalo_l) | Nhận diện khuôn mặt, trích xuất embedding 512-D |
+| **YOLOv8** (ultralytics) | Phát hiện khuôn mặt giả mạo (ảnh/màn hình điện thoại) |
+| **OpenCV** | Xử lý camera, vẽ kết quả |
+| **CustomTkinter** | Giao diện desktop hiện đại |
+| **SQLite** | Lưu trữ toàn bộ dữ liệu (1 file duy nhất) |
+| **NumPy** | Tính toán embedding, cosine similarity |
 
 ---
 
-<div align="center">
-<sub>Xây dựng với ❤️ bởi nhóm FaceID | Đại học Công nghệ TP.HCM</sub>
-</div>
+## ⚙️ Cách hoạt động (tóm tắt kỹ thuật)
+
+1. **Camera** chạy trên 1 thread riêng (`CameraStream`), liên tục đọc và giữ frame mới
+   nhất. Giao diện chỉ lấy frame có sẵn, không bao giờ phải đợi camera → không giật/lag
+   dù model AI xử lý chậm.
+2. Mỗi vài frame (cấu hình ở `config.py`), **InsightFace** chạy detect + trích embedding
+   trên ảnh đã giảm độ phân giải để tăng tốc.
+3. **YOLO anti-spoofing** chạy trên toàn bộ frame (không phải ảnh khuôn mặt đã crop) vì
+   cho độ chính xác cao hơn — quan sát từ quá trình thử nghiệm thực tế.
+4. Một khuôn mặt chỉ được coi là **"thật"** nếu vùng bounding box của nó **giao nhau**
+   với một box "real" mà YOLO phát hiện được trên toàn frame.
+5. Khuôn mặt đã xác thực "thật" mới được đưa qua **FaceMatcher** (cosine similarity với
+   embedding đã lưu trong SQLite) để xác định danh tính và ghi nhận điểm danh.
+
+---
+
+## 🐢 Xử lý vấn đề hiệu năng
+
+Nếu máy bạn vẫn giật/lag, chỉnh các giá trị sau trong `config.py`:
+
+| Tham số | Mặc định | Tăng lên để | Giảm xuống để |
+|---|---|---|---|
+| `FACE_DET_SIZE` | (320, 320) | Nhận diện chính xác hơn | Tăng FPS, giảm tải CPU |
+| `ATTENDANCE_DETECT_INTERVAL` | 4 | — | Tăng FPS (giảm số lần detect/giây) |
+| `ANTISPOOF_IMG_SIZE` | 320 | Anti-spoof chính xác hơn | Tăng FPS |
+| `ANTISPOOF_INTERVAL` | 2 | — | Tăng FPS |
+| `CAMERA_WIDTH/HEIGHT` | 640×480 | Hình ảnh rõ hơn | Tăng FPS đáng kể |
+
+Thứ tự ưu tiên giảm tải khi máy quá yếu: giảm `CAMERA_WIDTH/HEIGHT` trước → giảm
+`FACE_DET_SIZE` → tăng các giá trị `*_INTERVAL`.
+
+---
+
+## 🎯 Train model anti-spoofing
+
+Model quyết định độ chính xác phân biệt khuôn mặt thật/giả. Nếu nhận diện sai nhiều
+(luôn báo "giả mạo" hoặc ngược lại), nguyên nhân thường là **dataset chưa đủ đa dạng**,
+không phải do code.
+
+### Quy trình
+
+```bash
+python data_collect.py    # Thu thập ảnh real + fake
+python split_data.py      # Chia 70/20/10 train/val/test
+python train_yolo.py      # Train (CPU, ~1-3 giờ tùy dataset)
+```
+
+Sau khi train xong, copy model tốt nhất (`train_yolo.py` tự copy sẵn) vào `models/best.pt`.
+
+### Gợi ý để model học tốt
+
+- Thu thập **tối thiểu 200-300 ảnh** mỗi loại (real/fake), tỉ lệ gần 1:1
+- **Real**: nhiều người khác nhau (nếu có thể), nhiều góc độ, nhiều điều kiện ánh sáng
+  (sáng/tối/ngược sáng)
+- **Fake**: in ảnh ra giấy, hoặc mở ảnh/video trên điện thoại/màn hình laptop khác rồi
+  quay lại — đa dạng loại màn hình/giấy in để model không học "tắt" theo viền khung
+  hình mà học đặc trưng thật/giả
+- Xem `runs/detect/antispoof_training/results.png` sau khi train để kiểm tra model có
+  học tốt không (mAP tăng dần, loss giảm dần, không có dấu hiệu overfit)
+
+---
+
+## 📌 Lưu ý
+
+- Database (`data/faceid.db`) và model (`models/best.pt`) **không nên commit lên Git**
+  nếu chia sẻ mã nguồn — đã được thêm vào `.gitignore`.
+- Ứng dụng dùng `CPUExecutionProvider` cho InsightFace mặc định, phù hợp với máy không
+  có GPU NVIDIA (AMD/Intel GPU không hỗ trợ CUDA nên không tăng tốc được qua onnxruntime).
+
+---
+
+**FaceID Attendance System** — xây dựng cho mục đích học tập, môn Trí tuệ nhân tạo.
