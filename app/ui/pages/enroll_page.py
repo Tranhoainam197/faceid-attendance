@@ -10,7 +10,7 @@ from PIL import Image, ImageTk
 from config import (
     CAMERA_INDEX, CAMERA_WIDTH, CAMERA_HEIGHT, CAMERA_FPS_TARGET, UI_REFRESH_MS,
     ENROLL_DETECT_INTERVAL, ENROLL_MAX_SAMPLES, ENROLL_MIN_FACE_SIZE, ENROLL_MAX_FACE_SIZE,
-    ENROLL_MIN_CONFIDENCE, ENROLL_SAMPLE_COOLDOWN_FRAMES,
+    ENROLL_MIN_CONFIDENCE, ENROLL_SAMPLE_COOLDOWN_FRAMES, ENROLL_CONSECUTIVE_REAL_REQUIRED,
 )
 from app.ui.theme import COLORS, FONTS
 from app.ui.widgets.toast import show_toast
@@ -55,6 +55,7 @@ class EnrollPage(ctk.CTkFrame):
         self.running = False
         self.frame_count = 0
         self.sample_cooldown = 0
+        self.consecutive_real_count = 0   # đếm số frame liên tiếp xác thực "real"
         self.photo_image = None
         self.quality_widgets = {}
 
@@ -299,6 +300,7 @@ class EnrollPage(ctk.CTkFrame):
         self.running = True
         self.frame_count = 0
         self.sample_cooldown = 0
+        self.consecutive_real_count = 0
 
         self.entry_id.configure(state="disabled")
         self.entry_name.configure(state="disabled")
@@ -382,6 +384,10 @@ class EnrollPage(ctk.CTkFrame):
         )
 
         if not verified_real:
+            # Bất kỳ frame nào không xác thực được "real" sẽ RESET bộ đếm liên tiếp,
+            # buộc phải xác thực lại từ đầu - tránh trường hợp 1 frame dao động sai
+            # lọt qua giữa nhiều frame "fake" liên tục (vd: ảnh điện thoại di chuyển).
+            self.consecutive_real_count = 0
             self._set_quality("face", "bad")
             self._set_status("🚨 Phát hiện khả năng giả mạo hoặc không rõ ràng", COLORS["danger"])
             cv2.rectangle(display_frame, (l, t), (r, b), (0, 0, 239), 3)
@@ -389,7 +395,14 @@ class EnrollPage(ctk.CTkFrame):
                         cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 0, 239), 2)
             return
 
+        self.consecutive_real_count += 1
         self._set_quality("face", "good")
+
+        if self.consecutive_real_count < ENROLL_CONSECUTIVE_REAL_REQUIRED:
+            remaining = ENROLL_CONSECUTIVE_REAL_REQUIRED - self.consecutive_real_count
+            self._set_status(f"🔍 Đang xác thực khuôn mặt thật... ({remaining} frame nữa)", COLORS["info"])
+            cv2.rectangle(display_frame, (l, t), (r, b), (255, 165, 0), 2)
+            return
 
         distance_ok = ENROLL_MIN_FACE_SIZE <= w <= ENROLL_MAX_FACE_SIZE and \
             ENROLL_MIN_FACE_SIZE <= h <= ENROLL_MAX_FACE_SIZE

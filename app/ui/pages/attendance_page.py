@@ -20,6 +20,7 @@ from datetime import datetime, timedelta
 from config import (
     CAMERA_INDEX, CAMERA_WIDTH, CAMERA_HEIGHT, CAMERA_FPS_TARGET, UI_REFRESH_MS,
     ATTENDANCE_DETECT_INTERVAL, SIMILARITY_THRESHOLD, ATTENDANCE_COOLDOWN_SEC,
+    ATTENDANCE_CONSECUTIVE_REAL_REQUIRED,
 )
 from app.ui.theme import COLORS, FONTS
 from app.ui.widgets.toast import show_toast
@@ -251,6 +252,7 @@ class AttendancePage(ctk.CTkFrame):
                 attendance_repo=self.app.attendance_repo,
                 similarity_threshold=SIMILARITY_THRESHOLD,
                 cooldown_sec=ATTENDANCE_COOLDOWN_SEC,
+                consecutive_real_required=ATTENDANCE_CONSECUTIVE_REAL_REQUIRED,
             )
         session_id = self.session_map[self.session_combo.get()]
         self.attendance_service.start_session(session_id)
