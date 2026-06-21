@@ -181,19 +181,32 @@ class StudentsPage(ctk.CTkFrame):
         if not student:
             return
 
-        confirm = ConfirmDialog(
-            self, title="Xác nhận xóa",
-            message=f"Bạn có chắc muốn xóa:\n\n{student['name']} (Mã: {student['id']})\n\n"
-                     "Hành động này không thể hoàn tác.",
-        )
-        if confirm.result:
-            success = self.app.student_repo.delete(self.selected_id)
-            if success:
-                self.app.face_matcher.reload()
-                show_toast(self, f"Đã xóa {student['name']}", "success")
-                self.refresh()
-            else:
-                show_toast(self, "Không thể xóa, vui lòng thử lại!", "error")
+        attendance_count = self.app.student_repo.has_attendance_records(self.selected_id)
+
+        if attendance_count > 0:
+            message = (
+                f"{student['name']} (Mã: {student['id']}) đã có "
+                f"{attendance_count} lượt điểm danh trong lịch sử.\n\n"
+                f"Xóa nhân sự này sẽ XÓA LUÔN toàn bộ lịch sử điểm danh liên quan.\n"
+                f"Hành động này không thể hoàn tác."
+            )
+        else:
+            message = (
+                f"Bạn có chắc muốn xóa:\n\n{student['name']} (Mã: {student['id']})\n\n"
+                f"Hành động này không thể hoàn tác."
+            )
+
+        confirm = ConfirmDialog(self, title="Xác nhận xóa", message=message)
+        if not confirm.result:
+            return
+
+        success = self.app.student_repo.delete(self.selected_id, cascade=(attendance_count > 0))
+        if success:
+            self.app.face_matcher.reload()
+            show_toast(self, f"Đã xóa {student['name']}", "success")
+            self.refresh()
+        else:
+            show_toast(self, "Không thể xóa, vui lòng thử lại!", "error")
 
     def _export_csv(self):
         if not self.all_students:

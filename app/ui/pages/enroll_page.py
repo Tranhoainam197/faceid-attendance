@@ -311,7 +311,20 @@ class EnrollPage(ctk.CTkFrame):
 
     def cancel_enrollment(self):
         self._stop_camera_internal()
-        self.reset_form()
+        if self.enroll_service:
+            self.enroll_service.reset()
+
+        self.entry_id.configure(state="normal")
+        self.entry_name.configure(state="normal")
+
+        self.video_label.configure(image="", text="📷  Nhập thông tin và nhấn Bắt đầu", font=FONTS["body"])
+        self.progress_bar.set(0)
+        self.progress_label.configure(text=f"0 / {ENROLL_MAX_SAMPLES} mẫu")
+        self._reset_quality_indicators()
+        self._set_status("Nhập thông tin bên phải để bắt đầu", COLORS["text_secondary"])
+
+        self.btn_start.configure(state="normal")
+        self.btn_cancel.configure(state="disabled")
 
     def _stop_camera_internal(self):
         self.running = False
@@ -432,6 +445,24 @@ class EnrollPage(ctk.CTkFrame):
             self._set_status("⚠ Phát hiện nhiều khuôn mặt, chỉ giữ 1 người trong khung", COLORS["warning"])
 
     def _finish_enrollment(self):
+        # Kiểm tra khuôn mặt vừa thu thập có trùng với người ĐÃ ĐĂNG KÝ khác không
+        # (tránh 1 khuôn mặt được gắn nhiều mã số/tên khác nhau).
+        is_dup, dup_id, dup_name, similarity = self.enroll_service.check_duplicate_face(
+            self.app.face_matcher
+        )
+
+        if is_dup:
+            self._stop_camera_internal()
+            show_toast(
+                self,
+                f"Khuôn mặt này đã được đăng ký với mã '{dup_id}' ({dup_name}), "
+                f"độ giống {similarity:.0%}. Không thể đăng ký trùng!",
+                "error",
+            )
+            self.enroll_service.reset()
+            self.cancel_enrollment()
+            return
+
         success = self.enroll_service.save(self.current_student_id, self.current_student_name)
         self._stop_camera_internal()
 

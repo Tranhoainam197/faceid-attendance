@@ -84,6 +84,25 @@ class EnrollService:
         avg_variance = float(np.mean(variances))
         return min(1.0, avg_variance / 0.2)
 
+    def check_duplicate_face(self, face_matcher, threshold: float = 0.50):
+        """
+        Kiểm tra khuôn mặt vừa thu thập có trùng với người ĐÃ CÓ trong DB không
+        (dùng embedding trung bình của các mẫu hiện tại, chưa lưu).
+        Trả về (is_duplicate, matched_id, matched_name, similarity).
+        """
+        if not self.samples:
+            return False, None, None, 0.0
+
+        clean_embeddings = self._remove_outliers(self.samples)
+        mean_emb = np.mean(clean_embeddings, axis=0)
+        mean_emb /= (np.linalg.norm(mean_emb) + 1e-10)
+
+        matched_id, matched_name, similarity = face_matcher.match(mean_emb)
+
+        if matched_id is not None and similarity >= threshold:
+            return True, matched_id, matched_name, similarity
+        return False, None, None, similarity
+
     def save(self, student_id: str, name: str) -> bool:
         if not self.samples:
             return False

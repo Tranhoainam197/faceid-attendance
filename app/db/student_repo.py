@@ -62,13 +62,29 @@ class StudentRepo:
             result.append((r["id"], r["name"], emb))
         return result
 
-    def delete(self, student_id: str) -> bool:
+    def has_attendance_records(self, student_id: str) -> int:
+        """Trả về số lượng bản ghi điểm danh đang tham chiếu đến sinh viên này."""
+        row = self.conn.execute(
+            "SELECT COUNT(*) AS c FROM attendance WHERE student_id = ?", (student_id,)
+        ).fetchone()
+        return row["c"]
+
+    def delete(self, student_id: str, cascade: bool = False) -> bool:
+        """
+        Xóa sinh viên. Nếu cascade=False và sinh viên có lịch sử điểm danh,
+        việc xóa sẽ bị từ chối (do ràng buộc FOREIGN KEY) để bảo toàn dữ liệu.
+        Nếu cascade=True, xóa luôn toàn bộ lịch sử điểm danh liên quan trước.
+        """
         try:
+            if cascade:
+                self.conn.execute("DELETE FROM attendance WHERE student_id = ?", (student_id,))
+
             cur = self.conn.execute("DELETE FROM students WHERE id = ?", (student_id,))
             self.conn.commit()
             return cur.rowcount > 0
         except sqlite3.Error as e:
             print(f"[StudentRepo] Lỗi xoá: {e}")
+            self.conn.rollback()
             return False
 
     def count(self) -> int:
